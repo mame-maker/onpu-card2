@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音符クイズ</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #question { font-size: 24px; margin: 20px; }
+        button { padding: 10px 20px; font-size: 18px; margin: 5px; }
+        input { padding: 5px; margin: 5px; }
+        #editForm { display: none; }
+    </style>
+</head>
+<body>
+
+    <h1>音符クイズ</h1>
+    <div id="question">クリックしてクイズを開始！</div>
+    <button id="startButton">クイズ開始</button>
+    <button id="editButton">問題を編集する</button>
+    <button id="restartButton" style="display: none;">もう一度</button>
+    <div id="timer">タイム: 0秒</div>
+    <div id="choices"></div>
+
+    <div id="editForm">
+        <h2>問題を編集</h2>
+        <div id="questionList"></div>
+        <button onclick="addQuestion()">＋問題を追加</button>
+        <button onclick="saveQuestions()">保存</button>
+    </div>
+
+    <script>
+        let quizData = [];
+        const choices = ["ド", "レ", "ミ", "ファ", "ソ", "ラ", "シ"];
+
+        function loadQuestions() {
+            const storedQuestions = localStorage.getItem("quizData");
+            quizData = storedQuestions ? JSON.parse(storedQuestions) : [
+                { note: "ド", image: "do.png", sound: "do.mp3" },
+                { note: "レ", image: "re.png", sound: "re.mp3" },
+                { note: "ミ", image: "mi.png", sound: "mi.mp3" }
+            ];
+        }
+
+        loadQuestions();
+
+        let currentQuestion = 0;
+        let startTime;
+        let timerInterval;
+
+        document.getElementById("startButton").addEventListener("click", startQuiz);
+        document.getElementById("editButton").addEventListener("click", showEditForm);
+
+        function startQuiz() {
+            if (quizData.length === 0) {
+                alert("問題がありません。編集画面で追加してください。");
+                return;
+            }
+
+            quizData = shuffleArray(quizData); // 問題をシャッフル
+            currentQuestion = 0;
+            startTime = new Date().getTime();
+            document.getElementById("startButton").style.display = "none";
+            document.getElementById("editButton").style.display = "none";
+            document.getElementById("restartButton").style.display = "none";
+            document.getElementById("editForm").style.display = "none";
+            document.getElementById("timer").innerText = "タイム: 0秒";
+            startTimer();
+            askQuestion();
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                const elapsedTime = Math.floor((new Date().getTime() - startTime) / 1000);
+                document.getElementById("timer").innerText = `タイム: ${elapsedTime}秒`;
+            }, 1000);
+        }
+
+        function askQuestion() {
+            const question = quizData[currentQuestion];
+            document.getElementById("question").innerHTML = `<img src="${question.image}" width="100"><br>この音は？`;
+            const audio = new Audio(question.sound);
+            audio.play();
+
+            // 回答ボタンを生成
+            const choicesContainer = document.getElementById("choices");
+            choicesContainer.innerHTML = "";
+            choices.forEach(choice => {
+                const button = document.createElement("button");
+                button.innerText = choice;
+                button.onclick = () => checkAnswer(choice);
+                choicesContainer.appendChild(button);
+            });
+        }
+
+        function checkAnswer(userAnswer) {
+            const correctAnswer = quizData[currentQuestion].note;
+            if (userAnswer === correctAnswer) {
+                currentQuestion++;
+                if (currentQuestion < quizData.length) {
+                    askQuestion();
+                } else {
+                    finishQuiz();
+                }
+            } else {
+                document.getElementById("question").innerHTML += "<br>不正解！もう一度";
+            }
+        }
+
+        function finishQuiz() {
+            clearInterval(timerInterval);
+            const totalTime = Math.floor((new Date().getTime() - startTime) / 1000);
+            document.getElementById("question").innerHTML = `クリア！タイム: ${totalTime}秒`;
+            document.getElementById("restartButton").style.display = "block";
+            document.getElementById("editButton").style.display = "block";
+        }
+
+        document.getElementById("restartButton").addEventListener("click", startQuiz);
+
+        function showEditForm() {
+            document.getElementById("editForm").style.display = "block";
+            const questionList = document.getElementById("questionList");
+            questionList.innerHTML = "";
+            quizData.forEach((q, index) => {
+                questionList.innerHTML += `
+                    <div>
+                        <input type="text" id="note${index}" value="${q.note}" placeholder="音の名前">
+                        <input type="text" id="image${index}" value="${q.image}" placeholder="画像URL">
+                        <input type="text" id="sound${index}" value="${q.sound}" placeholder="音声URL">
+                        <button onclick="deleteQuestion(${index})">削除</button>
+                    </div>
+                `;
+            });
+        }
+
+        function addQuestion() {
+            quizData.push({ note: "", image: "", sound: "" });
+            showEditForm();
+        }
+
+        function deleteQuestion(index) {
+            quizData.splice(index, 1);
+            showEditForm();
+        }
+
+        function saveQuestions() {
+            quizData = quizData.map((q, index) => ({
+                note: document.getElementById(`note${index}`).value,
+                image: document.getElementById(`image${index}`).value,
+                sound: document.getElementById(`sound${index}`).value
+            }));
+            localStorage.setItem("quizData", JSON.stringify(quizData));
+            alert("問題を保存しました！");
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+    </script>
+</body>
+</html>
